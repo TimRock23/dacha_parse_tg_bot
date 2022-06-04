@@ -19,12 +19,14 @@ def db_connection(func):
 
 
 @db_connection
-def _init_db(conn: sqlite3.Connection, force: bool = False):
+def _init_db(conn: sqlite3.Connection):
+    """
+    Initiate database with droping existing tables.
+    """
     cursor = conn.cursor()
-    if force:
-        cursor.execute('DROP TABLE IF EXISTS user_category')
-        cursor.execute('DROP TABLE IF EXISTS category')
-        cursor.execute('DROP TABLE IF EXISTS user')
+    cursor.execute('DROP TABLE IF EXISTS user_category')
+    cursor.execute('DROP TABLE IF EXISTS category')
+    cursor.execute('DROP TABLE IF EXISTS user')
 
     with open('createdb.sql', 'r') as f:
         sql = f.read()
