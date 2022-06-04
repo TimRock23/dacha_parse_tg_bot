@@ -8,13 +8,11 @@ def db_connection(func):
     Decorator for secure connection to sqlite using context manager.
     Creates connection to DB if not exist and returns it.
     """
-
     def wrapper(*args, **kwargs):
         with sqlite3.connect(DB_NAME) as conn:
             kwargs['conn'] = conn
             res = func(*args, **kwargs)
         return res
-
     return wrapper
 
 
@@ -42,7 +40,16 @@ def add_user(conn: sqlite3.Connection, tg_id, username):
 
 
 @db_connection
-def get_category_id_by_name(conn: sqlite3.Connection, category):
+def is_user_exists(conn: sqlite3.Connection, tg_id) -> bool:
+    """Checks is user exists. Returns Bool value."""
+    cursor = conn.cursor()
+    cursor.execute('SELECT EXISTS(SELECT 1 FROM user WHERE id = ?)',
+                   (tg_id,))
+    return True if cursor.fetchone()[0] else False
+
+
+@db_connection
+def get_category_id_by_name(conn: sqlite3.Connection, category) -> int:
     """Returns category_id by given name of category."""
     cursor = conn.cursor()
     cursor.execute('SELECT id FROM category WHERE name = ?',
