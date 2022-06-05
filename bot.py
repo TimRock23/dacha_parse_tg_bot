@@ -36,13 +36,16 @@ async def start(message: types.Message):
 async def category(message: types.Message):
     user_categories = get_user_categories(user_id=message.from_user['id'])
     all_categories = get_all_categories()
-    keyboard = types.ReplyKeyboardMarkup()
-    for cat in all_categories:
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    buttons = []
+    for i, cat in enumerate(all_categories):
         if cat in user_categories:
-            button = types.KeyboardButton(text=cat[0] + ' +')
+            buttons.append(cat[0] + ' +')
         else:
-            button = types.KeyboardButton(text=cat[0] + ' -')
-        keyboard.add(button)
+            buttons.append(cat[0] + ' -')
+        if i % 2 == 1 or i == len(all_categories) - 1:
+            keyboard.add(*buttons)
+            buttons = []
     await message.answer('Выберите интересующие категории:',
                          reply_markup=keyboard)
 
