@@ -32,7 +32,7 @@ def _init_db(conn: sqlite3.Connection):
 
 
 @db_connection
-def add_user(conn: sqlite3.Connection, tg_id, username):
+def add_user(conn: sqlite3.Connection, tg_id: int, username: str):
     """Insert user to user table."""
     cursor = conn.cursor()
     cursor.execute('INSERT INTO user(id, username) values (?, ?)',
@@ -41,7 +41,7 @@ def add_user(conn: sqlite3.Connection, tg_id, username):
 
 
 @db_connection
-def is_user_exists(conn: sqlite3.Connection, tg_id) -> bool:
+def is_user_exists(conn: sqlite3.Connection, tg_id: int) -> bool:
     """Checks is user exists. Returns Bool value."""
     cursor = conn.cursor()
     cursor.execute('SELECT EXISTS(SELECT 1 FROM user WHERE id = ?)',
@@ -50,7 +50,7 @@ def is_user_exists(conn: sqlite3.Connection, tg_id) -> bool:
 
 
 @db_connection
-def get_category_id_by_name(conn: sqlite3.Connection, category) -> int:
+def get_category_id_by_name(conn: sqlite3.Connection, category: str) -> int:
     """Returns category_id by given name of category."""
     cursor = conn.cursor()
     cursor.execute('SELECT id FROM category WHERE name = ?',
@@ -60,7 +60,7 @@ def get_category_id_by_name(conn: sqlite3.Connection, category) -> int:
 
 
 @db_connection
-def add_user_category(conn: sqlite3.Connection, user_id, category):
+def add_user_category(conn: sqlite3.Connection, user_id: int, category: str):
     """Creates user-category relation."""
     cursor = conn.cursor()
     cursor.execute(
@@ -71,7 +71,8 @@ def add_user_category(conn: sqlite3.Connection, user_id, category):
 
 
 @db_connection
-def delete_user_category(conn: sqlite3.Connection, user_id, category):
+def delete_user_category(conn: sqlite3.Connection,
+                         user_id: int, category: str):
     """Delete user-category relation."""
     cursor = conn.cursor()
     cursor.execute(
@@ -82,21 +83,21 @@ def delete_user_category(conn: sqlite3.Connection, user_id, category):
 
 
 @db_connection
-def get_user_categories(conn: sqlite3.Connection, user_id) -> List[tuple]:
+def get_user_categories(conn: sqlite3.Connection, user_id:int) -> List[str]:
     cursor = conn.cursor()
     cursor.execute(
         'SELECT name FROM category INNER JOIN user_category ON '
         'category.id = user_category.category_id WHERE user_id = ?',
         (user_id,)
     )
-    return cursor.fetchall()
+    return [cat[0] for cat in cursor.fetchall()]
 
 
 @db_connection
-def get_all_categories(conn: sqlite3.Connection) -> List[tuple]:
+def get_all_categories(conn: sqlite3.Connection) -> List[str]:
     cursor = conn.cursor()
     cursor.execute('SELECT name FROM category')
-    return cursor.fetchall()
+    return [cat[0] for cat in cursor.fetchall()]
 
 
 if __name__ == '__main__':
