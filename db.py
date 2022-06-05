@@ -41,6 +41,14 @@ def add_user(conn: sqlite3.Connection, tg_id: int, username: str):
 
 
 @db_connection
+def get_all_users_ids(conn: sqlite3.Connection) -> List[int]:
+    """Returns list of all users."""
+    cursor = conn.cursor()
+    cursor.execute('SELECT id FROM user')
+    return [user[0] for user in cursor.fetchall()]
+
+
+@db_connection
 def is_user_exists(conn: sqlite3.Connection, tg_id: int) -> bool:
     """Checks is user exists. Returns Bool value."""
     cursor = conn.cursor()
@@ -55,8 +63,7 @@ def get_category_id_by_name(conn: sqlite3.Connection, category: str) -> int:
     cursor = conn.cursor()
     cursor.execute('SELECT id FROM category WHERE name = ?',
                    (category,))
-    category_id = cursor.fetchone()
-    return category_id
+    return cursor.fetchone()[0]
 
 
 @db_connection
@@ -65,7 +72,7 @@ def add_user_category(conn: sqlite3.Connection, user_id: int, category: str):
     cursor = conn.cursor()
     cursor.execute(
         'INSERT INTO user_category(user_id, category_id) values (?, ?)',
-        (user_id, get_category_id_by_name(category))
+        (user_id, get_category_id_by_name(category=category))
     )
     conn.commit()
 
@@ -77,13 +84,14 @@ def delete_user_category(conn: sqlite3.Connection,
     cursor = conn.cursor()
     cursor.execute(
         'DELETE FROM user_category WHERE user_id = ? AND category_id = ?',
-        (user_id, get_category_id_by_name(category))
+        (user_id, get_category_id_by_name(category=category))
     )
     conn.commit()
 
 
 @db_connection
 def get_user_categories(conn: sqlite3.Connection, user_id:int) -> List[str]:
+    """Returns user following categories."""
     cursor = conn.cursor()
     cursor.execute(
         'SELECT name FROM category INNER JOIN user_category ON '
@@ -95,6 +103,7 @@ def get_user_categories(conn: sqlite3.Connection, user_id:int) -> List[str]:
 
 @db_connection
 def get_all_categories(conn: sqlite3.Connection) -> List[str]:
+    """Returns list of all categories."""
     cursor = conn.cursor()
     cursor.execute('SELECT name FROM category')
     return [cat[0] for cat in cursor.fetchall()]

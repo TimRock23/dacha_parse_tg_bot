@@ -7,8 +7,9 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher.filters import Text
 
 from db import (add_user, is_user_exists, get_user_categories,
-                get_all_categories, add_user_category, delete_user_category)
-from utils import get_category_keyboard
+                get_all_users_ids, get_all_categories, add_user_category,
+                delete_user_category)
+from utils import get_category_keyboard, get_all_events
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -44,28 +45,33 @@ async def choose_category(message: types.Message):
 @dp.message_handler(Text(endswith=' -'))
 async def add_user_ctg(message: types.Message):
     category = message.text.split(' ')[0]
+    user_id = message.from_user['id']
     if category not in get_all_categories():
         await message.answer('Введена несуществующая категория.')
         return
-    if category in get_user_categories():
+    if category in get_user_categories(user_id=user_id):
         await message.answer('Вы уже подписаны на эту категорию')
         return
-    await add_user_category(user_id=message.from_user['id'], category=category)
-    await message.answer(f'Вы подписались на категорию - {category}')
+    add_user_category(user_id=user_id, category=category)
+    keyboard = get_category_keyboard(user_id)
+    await message.answer(f'Вы подписались на категорию - {category}',
+                         reply_markup=keyboard)
 
 
 @dp.message_handler(Text(endswith=' +'))
 async def delete_user_ctg(message: types.Message):
     category = message.text.split(' ')[0]
+    user_id = message.from_user['id']
     if category not in get_all_categories():
         await message.answer('Введена несуществующая категория.')
         return
-    if category not in get_user_categories():
+    if category not in get_user_categories(user_id=user_id):
         await message.answer('Вы не подписаны на эту категорию')
         return
-    await delete_user_category(user_id=message.from_user['id'],
-                               category=category)
-    await message.answer(f'Вы отписались от категории - {category}')
+    delete_user_category(user_id=user_id, category=category)
+    keyboard = get_category_keyboard(user_id)
+    await message.answer(f'Вы отписались от категории - {category}',
+                         reply_markup=keyboard)
 
 
 if __name__ == '__main__':
