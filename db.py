@@ -1,4 +1,5 @@
 import sqlite3
+from typing import List
 
 DB_NAME = 'dacha.db'
 
@@ -64,7 +65,8 @@ def add_user_category(conn: sqlite3.Connection, user_id, category):
     cursor = conn.cursor()
     cursor.execute(
         'INSERT INTO user_category(user_id, category_id) values (?, ?)',
-        (user_id, get_category_id_by_name(category)))
+        (user_id, get_category_id_by_name(category))
+    )
     conn.commit()
 
 
@@ -74,8 +76,27 @@ def delete_user_category(conn: sqlite3.Connection, user_id, category):
     cursor = conn.cursor()
     cursor.execute(
         'DELETE FROM user_category WHERE user_id = ? AND category_id = ?',
-        (user_id, get_category_id_by_name(category)))
+        (user_id, get_category_id_by_name(category))
+    )
     conn.commit()
+
+
+@db_connection
+def get_user_categories(conn: sqlite3.Connection, user_id) -> List[tuple]:
+    cursor = conn.cursor()
+    cursor.execute(
+        'SELECT name FROM category INNER JOIN user_category ON '
+        'category.id = user_category.category_id WHERE user_id = ?',
+        (user_id,)
+    )
+    return cursor.fetchall()
+
+
+@db_connection
+def get_all_categories(conn: sqlite3.Connection) -> List[tuple]:
+    cursor = conn.cursor()
+    cursor.execute('SELECT name FROM category')
+    return cursor.fetchall()
 
 
 if __name__ == '__main__':

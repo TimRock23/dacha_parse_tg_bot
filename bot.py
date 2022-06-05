@@ -5,7 +5,8 @@ import time
 
 from aiogram import Bot, Dispatcher, executor, types
 
-from db import add_user, is_user_exists
+from db import (add_user, is_user_exists, get_user_categories,
+                get_all_categories)
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +30,21 @@ async def start(message: types.Message):
                          'старые по выбранным категориям\n'
                          'Для выбора/изменения категорий введите "/category"',
                          parse_mode="MarkdownV2")
+
+
+@dp.message_handler(commands=['category'])
+async def category(message: types.Message):
+    user_categories = get_user_categories(user_id=message.from_user['id'])
+    all_categories = get_all_categories()
+    keyboard = types.ReplyKeyboardMarkup()
+    for cat in all_categories:
+        if cat in user_categories:
+            button = types.KeyboardButton(text=cat[0] + ' +')
+        else:
+            button = types.KeyboardButton(text=cat[0] + ' -')
+        keyboard.add(button)
+    await message.answer('Выберите интересующие категории:',
+                         reply_markup=keyboard)
 
 
 if __name__ == '__main__':
