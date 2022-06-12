@@ -22,24 +22,34 @@ class Event:
     description: str
     category: str
     tickets: int
-    NEW_EVENT_MESSAGE = ('Новое событие:{name}\n'
+    NEW_EVENT_MESSAGE = ('Новое событие: {name}\n'
                          'Категория: {category}\n'
                          'Дата: {date}\n'
                          'Билетов: {tickets}')
     NEW_TICKETS_MESSAGE = ('Новые билеты у события {name}\n'
                            'Дата: {date}\n'
                            'Билетов: {tickets}')
+    EVENT_MESSAGE = ('Cобытие: {name}\n'
+                     'Категория: {category}\n'
+                     'Дата: {date}\n'
+                     'Билетов: {tickets}')
 
-    def new_event_message(self) -> str:
+    def get_new_event_message(self) -> str:
         return self.NEW_EVENT_MESSAGE.format(name=self.name,
                                              category=self.category,
                                              date=self.date,
                                              tickets=self.tickets)
 
-    def new_tickets_message(self) -> str:
+    def get_new_tickets_message(self) -> str:
         return self.NEW_TICKETS_MESSAGE.format(name=self.name,
                                                date=self.date,
                                                tickets=self.tickets)
+
+    def get_event_message(self) -> str:
+        return self.EVENT_MESSAGE.format(name=self.name,
+                                         category=self.category,
+                                         date=self.date,
+                                         tickets=self.tickets)
 
 
 def cache(func):
@@ -85,9 +95,11 @@ def get_all_events() -> List[Event]:
     all_events = []
     for event in data:
         text_event = [i for i in event.text.split('\n') if i not in ('', ' ')]
-        category = text_event[3].split(' ')[-3]
-        tickets = (0 if text_event[5].startswith('Билетов нет')
-                   else int(text_event[5].split(' ')[1]))
+        for event_info in text_event:
+            if event_info.strip(' ').startswith('Бесплатно с Плюсом'):
+                category = event_info.split(' ')[-3]
+        tickets = (0 if text_event[-1].startswith('Билетов нет')
+                   else int(text_event[-1].split(' ')[1]))
         all_events.append(
             Event(date=text_event[0],
                   name=text_event[1],
@@ -96,3 +108,7 @@ def get_all_events() -> List[Event]:
                   tickets=tickets)
         )
     return all_events
+
+
+def is_event_old(old_event: Event, event: Event) -> bool:
+    return old_event.name == event.name and old_event.date == event.date

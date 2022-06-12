@@ -1,20 +1,28 @@
+import asyncio
 import logging
+import random
+
 from dotenv import load_dotenv
 import os
-import time
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher.filters import Text
 
 from db import (add_user, is_user_exists, get_user_categories,
-                get_all_users_ids, get_all_categories, add_user_category,
-                delete_user_category)
-from utils import get_category_keyboard, get_all_events
+                get_all_categories, add_user_category,
+                delete_user_category, get_users_by_category_name)
+from utils import get_category_keyboard, get_all_events, is_event_old
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
+START_MESSAGE = '''
+Бот парсит [Яндекс Дачу](https://plus.yandex.ru/dacha) на предмет появления 
+новых ивентов и билетов на старые по выбранным категориям\n
+Для выбора/изменения категорий введите "/category"\n
+Получить все ивенты с сайта по подписанным категориям - "/followed_events"
+'''
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
@@ -27,11 +35,7 @@ async def start(message: types.Message):
         add_user(tg_id=message.from_user['id'],
                  username=message.from_user['username'])
 
-    await message.answer('Бот парсит [Яндекс Дачу]('
-                         'https://plus.yandex.ru/dacha) '
-                         'на предмет появления новых ивентов и билетов на '
-                         'старые по выбранным категориям\n'
-                         'Для выбора/изменения категорий введите "/category"',
+    await message.answer(START_MESSAGE,
                          parse_mode="MarkdownV2")
 
 
@@ -74,5 +78,42 @@ async def delete_user_ctg(message: types.Message):
                          reply_markup=keyboard)
 
 
+@dp.message_handler(commands=['followed_events'])
+async def send_followed_events(message: types.Message):
+    all_events = get_all_events()
+    user_categories = get_user_categories(user_id=message.from_user['id'])
+    for event in all_events:
+        if event.category in user_categories:
+            await message.answer(event.get_event_message())
+
+
+async def parse_new_event_tickets():
+    old_events = []
+    while True:
+        all_events = get_all_events()
+        for event in all_events:
+            is_new = True
+            for old_event in old_events:
+                if is_event_old(old_event, event):
+                    is_new = False
+                    if old_event.tickets < event.tickets:
+                        users = get_users_by_category_name(
+                            category=event.category
+                        )
+                        for user in users:
+                            await bot.send_message(
+                                user, text=event.get_new_tickets_message()
+                            )
+            if is_new:
+                users = get_users_by_category_name(category=event.category)
+                for user in users:
+                    await bot.send_message(user,
+                                           text=event.get_new_event_message())
+        old_events = all_events
+        await asyncio.sleep(random.randint(180, 300))
+
+
 if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.create_task(parse_new_event_tickets())
     executor.start_polling(dp, skip_updates=True)
