@@ -78,6 +78,18 @@ def add_user_category(conn: sqlite3.Connection, user_id: int, category: str):
 
 
 @db_connection
+def get_users_by_category_name(conn: sqlite3.Connection, category: str):
+    """Returns list of user_id's by users that followed given category."""
+    cursor = conn.cursor()
+    cursor.execute(
+        'SELECT user_id FROM user_category INNER JOIN category ON '
+        'category.id = user_category.category_id WHERE name = ?',
+        (category,)
+    )
+    return [user[0] for user in cursor.fetchall()]
+
+
+@db_connection
 def delete_user_category(conn: sqlite3.Connection,
                          user_id: int, category: str):
     """Delete user-category relation."""
@@ -90,7 +102,7 @@ def delete_user_category(conn: sqlite3.Connection,
 
 
 @db_connection
-def get_user_categories(conn: sqlite3.Connection, user_id:int) -> List[str]:
+def get_user_categories(conn: sqlite3.Connection, user_id: int) -> List[str]:
     """Returns user following categories."""
     cursor = conn.cursor()
     cursor.execute(
