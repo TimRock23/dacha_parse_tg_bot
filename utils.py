@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import re
 from time import time
 from typing import List
 
@@ -12,11 +13,15 @@ from db import get_all_categories, get_user_categories
 URI = 'https://plus.yandex.ru/dacha'
 CACHE_TIME_SEC = 180
 PARSE_ITEM = 'dacha-events__item'
+REGISTRATION_URI = ('https://widget.afisha.yandex.ru/w/sessions/ticketsteam'
+                    '-1550%40{id}')
+ID_REGEX = r'\[data-style-id="dacha-event-card-(.*?)\"\]'
 
 
 @dataclass
 class Event:
     """Class to store event data."""
+    index: str
     date: str
     name: str
     description: str
@@ -25,31 +30,40 @@ class Event:
     NEW_EVENT_MESSAGE = ('Новое событие: {name}\n'
                          'Категория: {category}\n'
                          'Дата: {date}\n'
-                         'Билетов: {tickets}')
+                         'Билетов: {tickets}\n'
+                         'Регистрация: {uri}')
     NEW_TICKETS_MESSAGE = ('Новые билеты у события {name}\n'
                            'Дата: {date}\n'
-                           'Билетов: {tickets}')
+                           'Билетов: {tickets}'
+                           'Регистрация: {uri}')
     EVENT_MESSAGE = ('Cобытие: {name}\n'
                      'Категория: {category}\n'
                      'Дата: {date}\n'
-                     'Билетов: {tickets}')
+                     'Билетов: {tickets}'
+                     'Регистрация: {uri}')
 
     def get_new_event_message(self) -> str:
         return self.NEW_EVENT_MESSAGE.format(name=self.name,
                                              category=self.category,
                                              date=self.date,
-                                             tickets=self.tickets)
+                                             tickets=self.tickets,
+                                             uri=REGISTRATION_URI.format(
+                                                 id=self.index))
 
     def get_new_tickets_message(self) -> str:
         return self.NEW_TICKETS_MESSAGE.format(name=self.name,
                                                date=self.date,
-                                               tickets=self.tickets)
+                                               tickets=self.tickets,
+                                               uri=REGISTRATION_URI.format(
+                                                   id=self.index))
 
     def get_event_message(self) -> str:
         return self.EVENT_MESSAGE.format(name=self.name,
                                          category=self.category,
                                          date=self.date,
-                                         tickets=self.tickets)
+                                         tickets=self.tickets,
+                                         uri=REGISTRATION_URI.format(
+                                             id=self.index))
 
 
 def cache(func):
@@ -95,13 +109,19 @@ def get_all_events() -> List[Event]:
     all_events = []
     for event in data:
         text_event = [i for i in event.text.split('\n') if i not in ('', ' ')]
+        category = None
+        style = event.find_elements(by=By.TAG_NAME, value='style')
+        inner = style[0].get_attribute('innerHTML')
+        index = str(re.search(ID_REGEX, inner).group(1))
+
         for event_info in text_event:
             if event_info.strip(' ').startswith('Бесплатно с Плюсом'):
                 category = event_info.split(' ')[-3]
         tickets = (0 if text_event[-1].startswith('Билетов нет')
                    else int(text_event[-1].split(' ')[1]))
         all_events.append(
-            Event(date=text_event[0],
+            Event(index=index,
+                  date=text_event[0],
                   name=text_event[1],
                   description=text_event[2],
                   category=category,
@@ -112,3 +132,6 @@ def get_all_events() -> List[Event]:
 
 def is_event_old(old_event: Event, event: Event) -> bool:
     return old_event.name == event.name and old_event.date == event.date
+
+
+get_all_events()

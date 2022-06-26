@@ -1,27 +1,27 @@
 import asyncio
 import logging
-import random
-
-from dotenv import load_dotenv
 import os
+import random
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher.filters import Text
+from dotenv import load_dotenv
 
-from db import (add_user, is_user_exists, get_user_categories,
-                get_all_categories, add_user_category,
-                delete_user_category, get_users_by_category_name)
-from utils import get_category_keyboard, get_all_events, is_event_old
+from db import (add_user, add_user_category, delete_user_category,
+                get_all_categories, get_user_categories,
+                get_users_by_category_name, is_user_exists)
+from utils import get_all_events, get_category_keyboard, is_event_old, URI
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 START_MESSAGE = '''
-Бот парсит [Яндекс Дачу](https://plus.yandex.ru/dacha) на предмет появления 
-новых ивентов и билетов на старые по выбранным категориям\n
+Бот парсит Яндекс Дачу на предмет появления
+ новых ивентов и билетов на старые по выбранным категориям\n
 Для выбора/изменения категорий введите "/category"\n
-Получить все ивенты с сайта по подписанным категориям - "/followed_events"
+Получить все ивенты с сайта по подписанным категориям - "/events"
+Ссылка на Яндекс Дачу - "/link"
 '''
 
 bot = Bot(token=TOKEN)
@@ -35,8 +35,7 @@ async def start(message: types.Message):
         add_user(tg_id=message.from_user['id'],
                  username=message.from_user['username'])
 
-    await message.answer(START_MESSAGE,
-                         parse_mode="MarkdownV2")
+    await message.answer(START_MESSAGE)
 
 
 @dp.message_handler(commands=['category'])
@@ -78,13 +77,18 @@ async def delete_user_ctg(message: types.Message):
                          reply_markup=keyboard)
 
 
-@dp.message_handler(commands=['followed_events'])
+@dp.message_handler(commands=['events'])
 async def send_followed_events(message: types.Message):
     all_events = get_all_events()
     user_categories = get_user_categories(user_id=message.from_user['id'])
     for event in all_events:
         if event.category in user_categories:
             await message.answer(event.get_event_message())
+
+
+@dp.message_handler(commands=['link'])
+async def send_followed_events(message: types.Message):
+    await message.answer(URI)
 
 
 async def parse_new_event_tickets():
