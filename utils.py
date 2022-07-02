@@ -95,8 +95,7 @@ def get_category_keyboard(user_id: int) -> types.ReplyKeyboardMarkup:
     return keyboard
 
 
-@cache
-def get_all_events() -> List[Event]:
+def request_url_for_events() -> list:
     driver = webdriver.Chrome(ChromeDriverManager().install())
     driver.get(URI)
     try:
@@ -105,33 +104,53 @@ def get_all_events() -> List[Event]:
     except Exception as e:
         print(e)
         data = []
+    return data
+
+
+def parse_category(text_event) -> str:
+    category = None
+    for event_info in text_event:
+        if event_info.strip(' ').startswith('Бесплатно с Плюсом'):
+            category = event_info.split(' ')[-3]
+    return category
+
+
+def parse_tickets(text_event) -> int:
+    if text_event[-1].startswith('Билетов нет'):
+        return 0
+    else:
+        return int(text_event[-1].split(' ')[1])
+
+
+def parse_index(event) -> str:
+    style = event.find_elements(by=By.TAG_NAME, value='style')
+    inner = style[0].get_attribute('innerHTML')
+    index = str(re.search(ID_REGEX, inner).group(1))
+    return index
+
+
+def parse_event(event) -> Event:
+    text_event = [i for i in event.text.split('\n') if i not in ('', ' ')]
+
+    return Event(index=parse_index(event),
+                 date=text_event[0],
+                 name=text_event[1],
+                 description=text_event[2],
+                 category=parse_category(text_event),
+                 tickets=parse_tickets(text_event))
+
+
+@cache
+def get_all_events() -> List[Event]:
+    events = request_url_for_events()
 
     all_events = []
-    for event in data:
-        text_event = [i for i in event.text.split('\n') if i not in ('', ' ')]
-        category = None
-        style = event.find_elements(by=By.TAG_NAME, value='style')
-        inner = style[0].get_attribute('innerHTML')
-        index = str(re.search(ID_REGEX, inner).group(1))
-
-        for event_info in text_event:
-            if event_info.strip(' ').startswith('Бесплатно с Плюсом'):
-                category = event_info.split(' ')[-3]
-        tickets = (0 if text_event[-1].startswith('Билетов нет')
-                   else int(text_event[-1].split(' ')[1]))
+    for event in events:
         all_events.append(
-            Event(index=index,
-                  date=text_event[0],
-                  name=text_event[1],
-                  description=text_event[2],
-                  category=category,
-                  tickets=tickets)
+            parse_event(event)
         )
     return all_events
 
 
 def is_event_old(old_event: Event, event: Event) -> bool:
     return old_event.name == event.name and old_event.date == event.date
-
-
-get_all_events()
