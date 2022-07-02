@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import re
 from time import time
 from typing import List
@@ -9,18 +9,12 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
 from db import get_all_categories, get_user_categories
-
-URI = 'https://plus.yandex.ru/dacha'
-CACHE_TIME_SEC = 180
-PARSE_ITEM = 'dacha-events__item'
-REGISTRATION_URI = ('https://widget.afisha.yandex.ru/w/sessions/ticketsteam'
-                    '-1550%40{id}')
-ID_REGEX = r'\[data-style-id="dacha-event-card-(.*?)\"\]'
+import settings
 
 
 @dataclass
 class Event:
-    """Class to store event data."""
+    """Class to store and serialize event data."""
     index: str
     date: str
     name: str
@@ -43,26 +37,18 @@ class Event:
                      'Регистрация: {uri}')
 
     def get_new_event_message(self) -> str:
-        return self.NEW_EVENT_MESSAGE.format(name=self.name,
-                                             category=self.category,
-                                             date=self.date,
-                                             tickets=self.tickets,
-                                             uri=REGISTRATION_URI.format(
+        return self.NEW_EVENT_MESSAGE.format(**asdict(self),
+                                             uri=settings.REG_URI.format(
                                                  id=self.index))
 
     def get_new_tickets_message(self) -> str:
-        return self.NEW_TICKETS_MESSAGE.format(name=self.name,
-                                               date=self.date,
-                                               tickets=self.tickets,
-                                               uri=REGISTRATION_URI.format(
+        return self.NEW_TICKETS_MESSAGE.format(**asdict(self),
+                                               uri=settings.REG_URI.format(
                                                    id=self.index))
 
     def get_event_message(self) -> str:
-        return self.EVENT_MESSAGE.format(name=self.name,
-                                         category=self.category,
-                                         date=self.date,
-                                         tickets=self.tickets,
-                                         uri=REGISTRATION_URI.format(
+        return self.EVENT_MESSAGE.format(**asdict(self),
+                                         uri=settings.REG_URI.format(
                                              id=self.index))
 
 
@@ -72,7 +58,7 @@ def cache(func):
 
     def wrapper(*args, **kwargs):
         nonlocal res
-        if not res or time() - cache_time > CACHE_TIME_SEC:
+        if not res or time() - cache_time > settings.CACHE_TIME_SEC:
             res = func(*args, **kwargs)
         return res
 
@@ -84,12 +70,12 @@ def get_category_keyboard(user_id: int) -> types.ReplyKeyboardMarkup:
     all_categories = get_all_categories()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     buttons = []
-    for i, cat in enumerate(all_categories):
-        if cat in user_categories:
-            buttons.append(cat + ' +')
+    for idx, category in enumerate(all_categories):
+        if category in user_categories:
+            buttons.append(category + ' +')
         else:
-            buttons.append(cat + ' -')
-        if i % 2 == 1 or i == len(all_categories) - 1:
+            buttons.append(category + ' -')
+        if idx % 2 == 1 or idx == len(all_categories) - 1:
             keyboard.add(*buttons)
             buttons = []
     return keyboard
@@ -97,10 +83,10 @@ def get_category_keyboard(user_id: int) -> types.ReplyKeyboardMarkup:
 
 def request_url_for_events() -> list:
     driver = webdriver.Chrome(ChromeDriverManager().install())
-    driver.get(URI)
     try:
+        driver.get(settings.URI)
         data = driver.find_elements(by=By.CLASS_NAME,
-                                    value=PARSE_ITEM)
+                                    value=settings.PARSE_ITEM)
     except Exception as e:
         print(e)
         data = []
@@ -110,7 +96,7 @@ def request_url_for_events() -> list:
 def parse_category(text_event) -> str:
     category = None
     for event_info in text_event:
-        if event_info.strip(' ').startswith('Бесплатно с Плюсом'):
+        if event_info.strip(' ').startswith(settings.PLUS_ADVERTISING):
             category = event_info.split(' ')[-3]
     return category
 
@@ -125,7 +111,7 @@ def parse_tickets(text_event) -> int:
 def parse_index(event) -> str:
     style = event.find_elements(by=By.TAG_NAME, value='style')
     inner = style[0].get_attribute('innerHTML')
-    index = str(re.search(ID_REGEX, inner).group(1))
+    index = str(re.search(settings.ID_REGEX, inner).group(1))
     return index
 
 
@@ -142,14 +128,8 @@ def parse_event(event) -> Event:
 
 @cache
 def get_all_events() -> List[Event]:
-    events = request_url_for_events()
-
-    all_events = []
-    for event in events:
-        all_events.append(
-            parse_event(event)
-        )
-    return all_events
+    raw_events = request_url_for_events()
+    return [parse_event(event) for event in raw_events]
 
 
 def is_event_old(old_event: Event, event: Event) -> bool:
