@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import random
+import sys
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher.filters import Text
@@ -10,19 +11,12 @@ from dotenv import load_dotenv
 from db import (add_user, add_user_category, delete_user_category,
                 get_all_categories, get_user_categories,
                 get_users_by_category_name, is_user_exists)
-from utils import get_all_events, get_category_keyboard, is_event_old, URI
+from utils import get_all_events, get_category_keyboard, is_event_old
+import settings
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
-START_MESSAGE = '''
-Бот парсит Яндекс Дачу на предмет появления
- новых ивентов и билетов на старые по выбранным категориям\n
-Для выбора/изменения категорий введите "/category"\n
-Получить все ивенты с сайта по подписанным категориям - "/events"
-Ссылка на Яндекс Дачу - "/link"
-'''
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
@@ -30,12 +24,11 @@ dp = Dispatcher(bot)
 
 @dp.message_handler(commands=['start', 'help', 'info'])
 async def start(message: types.Message):
-    """Add user to DB if not exists, send info message"""
+    """Add user to DB if not exists, send info message."""
     if not is_user_exists(tg_id=message.from_user['id']):
         add_user(tg_id=message.from_user['id'],
                  username=message.from_user['username'])
-
-    await message.answer(START_MESSAGE)
+    await message.answer(settings.START_MESSAGE)
 
 
 @dp.message_handler(commands=['category'])
@@ -88,7 +81,7 @@ async def send_followed_events(message: types.Message):
 
 @dp.message_handler(commands=['link'])
 async def send_followed_events(message: types.Message):
-    await message.answer(URI)
+    await message.answer(settings.URI)
 
 
 async def parse_new_event_tickets():
@@ -114,10 +107,22 @@ async def parse_new_event_tickets():
                     await bot.send_message(user,
                                            text=event.get_new_event_message())
         old_events = all_events
-        await asyncio.sleep(random.randint(180, 300))
+        await asyncio.sleep(random.randint(*settings.REQUEST_TIME_RANGE))
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format=(
+            '%(asctime)s [%(levelname)s] - '
+            '(%(filename)s).%(funcName)s:%(lineno)d - %(message)s'
+        ),
+        handlers=[
+            logging.FileHandler(f'output.log', mode='a'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+
     loop = asyncio.get_event_loop()
     loop.create_task(parse_new_event_tickets())
     executor.start_polling(dp, skip_updates=True)

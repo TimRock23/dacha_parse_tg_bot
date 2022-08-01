@@ -12,7 +12,7 @@ from db import get_all_categories, get_user_categories
 import settings
 
 
-@dataclass
+@dataclass(frozen=True)
 class Event:
     """Class to store and serialize event data."""
     index: str
